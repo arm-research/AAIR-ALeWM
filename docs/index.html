@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ALeWM: Adaptive Latent Capacity for World Models | Arm Research</title>
+<meta name="description" content="Adaptive LeWorldModel learns to concentrate predictive information in compact prefixes of a wide latent representation. Paper, method, toy example, and visual-control rollout examples.">
+<meta name="theme-color" content="#17677f">
+<meta property="og:title" content="ALeWM: Adaptive Latent Capacity for World Models">
+<meta property="og:description" content="Learn a wide representation. Plan with a compact prefix.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://arm-research.github.io/AAIR-ALeWM/assets/figures/figure-1.png">
+<meta property="og:url" content="https://arm-research.github.io/AAIR-ALeWM/">
+<meta name="citation_title" content="Adaptive Latent Capacity for World Models">
+<meta name="citation_author" content="Idan Achituve"><meta name="citation_author" content="Lior Dikstein"><meta name="citation_author" content="Idit Diamant"><meta name="citation_author" content="Arnon Netzer"><meta name="citation_author" content="Hai Victor Habi">
+<meta name="citation_publication_date" content="2026/09/26"><meta name="citation_pdf_url" content="https://arxiv.org/pdf/2609.32921">
+<link rel="canonical" href="https://arm-research.github.io/AAIR-ALeWM/">
+<link rel="stylesheet" href="styles.css"><script src="site.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#abstract">Skip to content</a>
+<header class="hero"><div class="container">
+<p class="eyebrow">Arm Research · 2026</p>
+<h1><span>ALeWM:</span> Adaptive Latent Capacity<br>for World Models</h1>
+<div class="authors"><a href="mailto:idan.achituve@arm.com">Idan Achituve</a><span>Lior Dikstein</span><span>Idit Diamant</span><span>Arnon Netzer</span><span>Hai Victor Habi</span></div>
+<p class="affiliation">Arm Research, Israel</p>
+<div class="links"><a class="pill" href="https://arxiv.org/abs/2609.32921"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6zM14 3v5h4M9 12h6M9 16h6"/></svg>arXiv</a><a class="pill" href="https://arxiv.org/pdf/2609.32921"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M5 16v5h14v-5"/></svg>Paper PDF</a><button class="pill pill-soon" type="button" disabled>Code (soon)</button></div>
+<nav class="nav" aria-label="Page sections"><a href="#overview">Overview</a><a href="#abstract">Abstract</a><a href="#approach">Approach</a><a href="#toy">Toy example</a><a href="#results">Results</a><a href="#citation">Citation</a></nav>
+</div></header>
+<main>
+<section id="overview" class="teaser" aria-label="Figure 1: ALeWM overview"><div class="container"><figure>
+<a href="assets/figures/figure-1.png" aria-label="Open Figure 1 at full resolution"><span class="overview-panels"><img src="assets/figures/figure-1-method.png" width="824" height="492" alt="Figure 1, left: encoder, capacity selector, masked latent state, predictor, prediction loss and MixSIGReg."><img src="assets/figures/figure-1-results.png" width="744" height="492" alt="Figure 1, right: ALeWM improves success rates while reducing mean planning capacity relative to full-width LeWM on four tasks."></span></a>
+<figcaption><strong>Figure 1.</strong> ALeWM learns a wide representation and selects a compact prefix for prediction and planning. The right panel compares ViT-Tiny models with maximum latent dimension 192 against <strong>full-width LeWM (d = 192)</strong>; moving up and left means higher success and lower planning capacity.</figcaption>
+</figure><p class="takeaway">Learn a wide representation.<br><strong>Plan with the prefix that matters.</strong></p></div></section>
+<section id="abstract" class="alt abstract"><div class="container narrow"><h2>Abstract</h2><p>We introduce Adaptive LeWorldModel (ALeWM), a world model based on a joint-embedding predictive architecture (JEPA) that learns to concentrate predictive information in compact prefixes of a wide latent representation. To encourage this ordering, ALeWM learns a sequence-conditioned distribution over prefix lengths and trains the predictor to estimate the full next embedding from a sampled input prefix. As standard anti-collapse objectives encourage variation across latent coordinates and do not organize them by predictive importance, we also introduce MixSIGReg. MixSIGReg regularizes the masked embeddings against a prior-weighted mixture with Gaussian active prefixes and zeros in the remaining coordinates. As a result, the ALeWM objective encourages early coordinates to retain information useful for prediction and recursive planning. Our analysis shows that the mixture distribution used by MixSIGReg assigns higher variance to earlier coordinate blocks and lower variance to later ones. In addition, we show that, under specified assumptions, prediction error is minimized by placing the information most useful for prediction in earlier blocks. Empirically, we study the behavior of ALeWM in a controlled dynamical system with known state variables and in goal-conditioned visual control. We show that ALeWM consistently achieves higher mean success rates than tuned fixed-width LeWM, with lower planning capacity on average.</p></div></section>
+<section id="approach"><div class="container"><h2>Approach</h2><p class="lede">A learned capacity selector organizes predictive information near the beginning of the latent representation. Two loss terms train the model together.</p>
+<div class="objective"><var>ℒ</var> = <var>ℒ</var><sub>pred</sub> + λ <var>ℒ</var><sub>MixSIG</sub></div>
+<div class="loss-grid">
+<article class="loss"><span class="number">01 / PREDICT THE FULL NEXT EMBEDDING</span><h3>Prediction loss</h3><p>The encoder produces a full state <var>s</var><sub>t</sub>. A capacity <var>k</var> is sampled from the learned sequence-conditioned distribution <var>q</var><sub>ψ</sub>(<var>k</var> | <var>w</var>). The predictor sees only the first <var>k</var> coordinates and the action, and predicts the <em>full</em> next embedding.</p>
+<div class="math"><var>z</var><sub>t</sub> = M<sub>k</sub><var>s</var><sub>t</sub>, &nbsp; ŝ<sub>t+1</sub> = pred<sub>ϕ</sub>(<var>z</var><sub>t</sub>, <var>a</var><sub>t</sub>)</div>
+<div class="math"><var>ℒ</var><sub>pred</sub> = <span class="fraction"><span>1</span><span>B(F − 1)</span></span> ∑<sub>b,t</sub> ‖ŝ<sub>b,t+1</sub> − <var>s</var><sub>b,t+1</sub>‖<sub>2</sub><sup>2</sup></div>
+<p>Earlier coordinates survive more prefix choices, so they are repeatedly asked to carry information useful for predicting the wider representation.</p></article>
+<article class="loss"><span class="number">02 / REGULARIZE THE MASKED DISTRIBUTION</span><h3>MixSIGReg</h3><p>To prevent collapse while accommodating unequal coordinate use, MixSIGReg matches masked embeddings to a prior-weighted mixture: Gaussian variation in each active prefix, with zeros in its suffix.</p>
+<div class="math"><var>p</var><sub>0</sub>(<var>z</var>) = ∑<sub>k ∈ 𝒦</sub> π<sub>0</sub>(<var>k</var>) [𝒩(0, I<sub>k</sub>) ⊗ δ<sub>0</sub>]</div>
+<p>The match is measured through one-dimensional random projections and their characteristic functions. The reference variance of coordinate <var>j</var> is Pr<sub>π₀</sub>(K ≥ j), linking its variance to how often the prior keeps it active.</p></article>
+</div>
+<details class="detail"><summary>MixSIGReg loss and characteristic functions</summary>
+<p>With B sequences, F frame positions and P random unit directions <var>u</var><sup>(p)</sup>, the regularizer is</p>
+<div class="math"><var>ℒ</var><sub>MixSIG</sub> = <span class="fraction"><span>B</span><span>PF</span></span> ∑<sub>p=1</sub><sup>P</sup> ∑<sub>t=1</sub><sup>F</sup> ∫ <var>w</var>(τ) |φ̂<sub>t</sub><sup>(p)</sup>(τ) − φ<sub>0</sub><sup>(p)</sup>(τ)|<sup>2</sup> dτ</div>
+<div class="math">φ<sub>0</sub><sup>(p)</sup>(τ) = ∑<sub>k ∈ 𝒦</sub> π<sub>0</sub>(<var>k</var>; α) exp(−½τ<sup>2</sup> ‖M<sub>k</sub><var>u</var><sup>(p)</sup>‖<sub>2</sub><sup>2</sup>)</div>
+<div class="math">φ̂<sub>t</sub><sup>(p)</sup>(τ) = <span class="fraction"><span>1</span><span>B</span></span> ∑<sub>b=1</sub><sup>B</sup> ∑<sub>k ∈ 𝒦</sub> <var>q</var><sub>ψ</sub>(<var>k</var> | <var>w</var><sub>b</sub>) exp(iτ <var>u</var><sup>(p)ᵀ</sup>M<sub>k</sub><var>s</var><sub>b,t</sub>)</div>
+<p>The frequency window is <var>w</var>(τ) = exp(−τ²/2). Here π₀ is the fixed capacity prior, while <var>q</var><sub>ψ</sub> is the learned selector. The empirical characteristic function sums over all supported capacities. See Eqs. (5)–(9) in the <a href="https://arxiv.org/pdf/2609.32921#page=5">paper</a>.</p>
+</details>
+<p class="planning"><strong>At planning time, choose once.</strong> The selector takes the initial and goal observations, chooses the most likely capacity, and holds it fixed for the episode. Every recursive prediction is masked to that prefix, and candidate plans are compared with the goal in the same prefix space.</p>
+</div></section>
+<section id="toy" class="alt"><div class="container"><h2>Toy example</h2><p class="lede">Four dynamical factors, ten observation coordinates, eight latent dimensions. Where does the information go?</p>
+<div class="narrow" style="margin:auto"><p>Two independently controlled damped oscillators provide a known four-dimensional state: two positions and two velocities. We turn that state into ten nonlinear observation coordinates and train ALeWM with a maximum width of eight.</p><p><strong>The first four coordinates recover the state with R² = 0.983.</strong> In the reported toy experiment, this is comparable to LeWM trained at the matching width of four (0.980), and higher than LeWM at widths six (0.930) and eight (0.904).</p></div>
+<div class="toy-grid">
+<figure><img src="assets/figures/toy-linear_state_recovery.png" alt="State recovery versus prefix size: ALeWM approaches R squared 0.983 at a four-coordinate prefix." loading="lazy"><figcaption><strong>(a) Linear state recovery.</strong> Most decodable information fits in the first four coordinates. The dashed line marks the true factor count.</figcaption></figure>
+<figure><img src="assets/figures/toy-latent_spectrum.png" alt="Latent covariance spectrum: ALeWM has four leading eigenvalues and a sharp drop, whereas the LeWM spectra remain nearly flat." loading="lazy"><figcaption><strong>(b) Latent covariance spectrum.</strong> ALeWM concentrates variation; the selected LeWM models remain nearly isotropic.</figcaption></figure>
+<figure><img src="assets/figures/toy-whitened_procrustes.png" alt="Four scatterplots showing whitened Procrustes alignment between the known factors and ALeWM's first four latent coordinates." loading="lazy"><figcaption><strong>(c) Whitened Procrustes alignment.</strong> The first four coordinates align with the known state after whitening and alignment fitted on training data.</figcaption></figure>
+<figure><img src="assets/figures/toy-masked_mixture_variance.png" alt="Empirical masked-embedding variance and the prior target variance by latent coordinate." loading="lazy"><figcaption><strong>(d) Masked embedding variance.</strong> The empirical variance is compared with the prior’s coordinate-survival probabilities.</figcaption></figure>
+</div><p class="table-note">Figure 2 panels. The paper shows one toy seed and reports consistent behavior across several seeds.</p></div></section>
+<section id="results"><div class="container"><h2>Main results</h2><p class="lede">Goal-conditioned visual control on TwoRoom, PushT, Reacher, and OGBench-Cube.</p>
+<div class="table-wrap"><table class="result-table"><caption class="sr-only" style="text-align:left;padding-bottom:10px">ViT-Tiny, maximum latent dimension 192 · Table 1</caption><thead><tr><th scope="col">Dataset</th><th scope="col">LeWM (best d)<br>Success (%)</th><th scope="col">ALeWM<br>Success (%)</th><th scope="col">ALeWM<br>Mean Planning Capacity</th></tr></thead><tbody>
+<tr><th scope="row">TwoRoom</th><td>95.00 ± 0.00</td><td class="ours">100.0 ± 0.00</td><td>8.00</td></tr>
+<tr><th scope="row">PushT</th><td>92.67 ± 0.33</td><td class="ours">96.00 ± 0.00</td><td>53.49</td></tr>
+<tr><th scope="row">Reacher</th><td>84.50 ± 1.15</td><td class="ours">85.83 ± 1.01</td><td>48.59</td></tr>
+<tr><th scope="row">OGBench-Cube</th><td>72.33 ± 1.17</td><td class="ours">79.00 ± 0.76</td><td>16.00</td></tr>
+</tbody></table></div><p class="table-note">Mean ± SEM over three training seeds, with 200 held-out test episodes per seed. LeWM’s best latent widths are 32, 160, 160, and 96, respectively. These comparisons use tuned LeWM; Figure 1 above uses full-width LeWM.</p>
+<div class="gallery-toolbar"><h3>Rollout examples</h3><button id="play-all" class="control">Play all videos</button></div>
+<p class="gallery-note">Successful and failed test episodes using ALeWM with ViT-Tiny, d<sub>max</sub> = 192 and training seed 3072. Each video shows environment observations after the agent executes model-planned actions, alongside the fixed goal. K is selected once per episode. Videos retain their original 15 fps timing and begin after the first action.</p>
+<div class="dataset"><div class="dataset-heading"><h4>TwoRoom</h4><span>Test episodes · ViT-Tiny</span></div><div class="examples"><figure class="rollout">
+<div class="rollout-top"><strong>Example 1</strong><span class="success">● Successful</span></div>
+<div class="media-labels"><span>ALeWM rollout</span><span>Goal</span></div>
+<div class="media-pair"><video id="tworoom-1" data-label="TwoRoom example 1" controls muted loop playsinline preload="metadata" poster="assets/rollouts/tworoom-1-poster.png" aria-label="TwoRoom example 1: successful agent rollout"><source src="assets/rollouts/tworoom-1.mp4" type="video/mp4">Your browser does not support this video. <a href="assets/rollouts/tworoom-1.mp4">Download the rollout</a>.</video><img src="assets/rollouts/tworoom-1-goal.png" alt="Goal observation for TwoRoom example 1" width="224" height="224" loading="lazy"></div>
+<figcaption><span>K = 8 / 192</span><button class="control" data-video="tworoom-1" aria-label="Play TwoRoom example 1">Play</button></figcaption></figure><figure class="rollout">
+<div class="rollout-top"><strong>Example 2</strong><span class="success">● Successful</span></div>
+<div class="media-labels"><span>ALeWM rollout</span><span>Goal</span></div>
+<div class="media-pair"><video id="tworoom-2" data-label="TwoRoom example 2" controls muted loop playsinline preload="metadata" poster="assets/rollouts/tworoom-2-poster.png" aria-label="TwoRoom example 2: successful agent rollout"><source src="assets/rollouts/tworoom-2.mp4" type="video/mp4">Your browser does not support this video. <a href="assets/rollouts/tworoom-2.mp4">Download the rollout</a>.</video><img src="assets/rollouts/tworoom-2-goal.png" alt="Goal observation for TwoRoom example 2" width="224" height="224" loading="lazy"></div>
+<figcaption><span>K = 8 / 192</span><button class="control" data-video="tworoom-2" aria-label="Play TwoRoom example 2">Play</button></figcaption></figure></div></div>
+<div class="dataset"><div class="dataset-heading"><h4>PushT</h4><span>Test episodes · ViT-Tiny</span></div><div class="examples"><figure class="rollout">
+<div class="rollout-top"><strong>Example 1</strong><span class="success">● Successful</span></div>
+<div class="media-labels"><span>ALeWM rollout</span><span>Goal</span></div>
+<div class="media-pair"><video id="pusht-1" data-label="PushT example 1" controls muted loop playsinline preload="metadata" poster="assets/rollouts/pusht-1-poster.png" aria-label="PushT example 1: successful agent rollout"><source src="assets/rollouts/pusht-1.mp4" type="video/mp4">Your browser does not support this video. <a href="assets/rollouts/pusht-1.mp4">Download the rollout</a>.</video><img src="assets/rollouts/pusht-1-goal.png" alt="Goal observation for PushT example 1" width="224" height="224" loading="lazy"></div>
+<figcaption><span>K = 64 / 192</span><button class="control" data-video="pusht-1" aria-label="Play PushT example 1">Play</button></figcaption></figure><figure class="rollout">
+<div class="rollout-top"><strong>Example 2</strong><span class="success">● Successful</span></div>
+<div class="media-labels"><span>ALeWM rollout</span><span>Goal</span></div>
+<div class="media-pair"><video id="pusht-2" data-label="PushT example 2" controls muted loop playsinline preload="metadata" poster="assets/rollouts/pusht-2-poster.png" aria-label="PushT example 2: successful agent rollout"><source src="assets/rollouts/pusht-2.mp4" type="video/mp4">Your browser does not support this video. <a href="assets/rollouts/pusht-2.mp4">Download the rollout</a>.</video><img src="assets/rollouts/pusht-2-goal.png" alt="Goal observation for PushT example 2" width="224" height="224" loading="lazy"></div>
+<figcaption><span>K = 64 / 192</span><button class="control" data-video="pusht-2" aria-label="Play PushT example 2">Play</button></figcaption></figure><figure class="rollout rollout-failure">
+<div class="rollout-top"><strong>Failure case</strong><span class="failure">● Failed</span></div>
+<div class="media-labels"><span>ALeWM rollout</span><span>Goal</span></div>
+<div class="media-pair"><video id="pusht-3" data-label="PushT failure case" controls muted loop playsinline preload="metadata" poster="assets/rollouts/pusht-failure-poster.png" aria-label="PushT failure case: failed agent rollout"><source src="assets/rollouts/pusht-failure.mp4" type="video/mp4">Your browser does not support this video. <a href="assets/rollouts/pusht-failure.mp4">Download the rollout</a>.</video><img src="assets/rollouts/pusht-failure-goal.png" alt="Goal observation for PushT failure case" width="224" height="224" loading="lazy"></div>
+<figcaption><span>K = 64 / 192</span><button class="control" data-video="pusht-3" aria-label="Play PushT failure case">Play</button></figcaption></figure></div></div>
+<div class="dataset"><div class="dataset-heading"><h4>Reacher</h4><span>Test episodes · ViT-Tiny</span></div><div class="examples"><figure class="rollout">
+<div class="rollout-top"><strong>Example 1</strong><span class="success">● Successful</span></div>
+<div class="media-labels"><span>ALeWM rollout</span><span>Goal</span></div>
+<div class="media-pair"><video id="reacher-1" data-label="Reacher example 1" controls muted loop playsinline preload="metadata" poster="assets/rollouts/reacher-1-poster.png" aria-label="Reacher example 1: successful agent rollout"><source src="assets/rollouts/reacher-1.mp4" type="video/mp4">Your browser does not support this video. <a href="assets/rollouts/reacher-1.mp4">Download the rollout</a>.</video><img src="assets/rollouts/reacher-1-goal.png" alt="Goal observation for Reacher example 1" width="224" height="224" loading="lazy"></div>
+<figcaption><span>K = 32 / 192</span><button class="control" data-video="reacher-1" aria-label="Play Reacher example 1">Play</button></figcaption></figure><figure class="rollout">
+<div class="rollout-top"><strong>Example 2</strong><span class="success">● Successful</span></div>
+<div class="media-labels"><span>ALeWM rollout</span><span>Goal</span></div>
+<div class="media-pair"><video id="reacher-2" data-label="Reacher example 2" controls muted loop playsinline preload="metadata" poster="assets/rollouts/reacher-2-poster.png" aria-label="Reacher example 2: successful agent rollout"><source src="assets/rollouts/reacher-2.mp4" type="video/mp4">Your browser does not support this video. <a href="assets/rollouts/reacher-2.mp4">Download the rollout</a>.</video><img src="assets/rollouts/reacher-2-goal.png" alt="Goal observation for Reacher example 2" width="224" height="224" loading="lazy"></div>
+<figcaption><span>K = 32 / 192</span><button class="control" data-video="reacher-2" aria-label="Play Reacher example 2">Play</button></figcaption></figure><figure class="rollout rollout-failure">
+<div class="rollout-top"><strong>Failure case</strong><span class="failure">● Failed</span></div>
+<div class="media-labels"><span>ALeWM rollout</span><span>Goal</span></div>
+<div class="media-pair"><video id="reacher-3" data-label="Reacher failure case" controls muted loop playsinline preload="metadata" poster="assets/rollouts/reacher-failure-poster.png" aria-label="Reacher failure case: failed agent rollout"><source src="assets/rollouts/reacher-failure.mp4" type="video/mp4">Your browser does not support this video. <a href="assets/rollouts/reacher-failure.mp4">Download the rollout</a>.</video><img src="assets/rollouts/reacher-failure-goal.png" alt="Goal observation for Reacher failure case" width="224" height="224" loading="lazy"></div>
+<figcaption><span>K = 32 / 192</span><button class="control" data-video="reacher-3" aria-label="Play Reacher failure case">Play</button></figcaption></figure></div></div>
+<div class="dataset"><div class="dataset-heading"><h4>OGBench-Cube</h4><span>Test episodes · ViT-Tiny</span></div><div class="examples"><figure class="rollout">
+<div class="rollout-top"><strong>Example 1</strong><span class="success">● Successful</span></div>
+<div class="media-labels"><span>ALeWM rollout</span><span>Goal</span></div>
+<div class="media-pair"><video id="ogb-1" data-label="OGBench-Cube example 1" controls muted loop playsinline preload="metadata" poster="assets/rollouts/cube-1-poster.png" aria-label="OGBench-Cube example 1: successful agent rollout"><source src="assets/rollouts/cube-1.mp4" type="video/mp4">Your browser does not support this video. <a href="assets/rollouts/cube-1.mp4">Download the rollout</a>.</video><img src="assets/rollouts/cube-1-goal.png" alt="Goal observation for OGBench-Cube example 1" width="224" height="224" loading="lazy"></div>
+<figcaption><span>K = 16 / 192</span><button class="control" data-video="ogb-1" aria-label="Play OGBench-Cube example 1">Play</button></figcaption></figure><figure class="rollout">
+<div class="rollout-top"><strong>Example 2</strong><span class="success">● Successful</span></div>
+<div class="media-labels"><span>ALeWM rollout</span><span>Goal</span></div>
+<div class="media-pair"><video id="ogb-2" data-label="OGBench-Cube example 2" controls muted loop playsinline preload="metadata" poster="assets/rollouts/cube-2-poster.png" aria-label="OGBench-Cube example 2: successful agent rollout"><source src="assets/rollouts/cube-2.mp4" type="video/mp4">Your browser does not support this video. <a href="assets/rollouts/cube-2.mp4">Download the rollout</a>.</video><img src="assets/rollouts/cube-2-goal.png" alt="Goal observation for OGBench-Cube example 2" width="224" height="224" loading="lazy"></div>
+<figcaption><span>K = 16 / 192</span><button class="control" data-video="ogb-2" aria-label="Play OGBench-Cube example 2">Play</button></figcaption></figure><figure class="rollout rollout-failure">
+<div class="rollout-top"><strong>Failure case</strong><span class="failure">● Failed</span></div>
+<div class="media-labels"><span>ALeWM rollout</span><span>Goal</span></div>
+<div class="media-pair"><video id="ogb-3" data-label="OGBench-Cube failure case" controls muted loop playsinline preload="metadata" poster="assets/rollouts/cube-failure-poster.png" aria-label="OGBench-Cube failure case: failed agent rollout"><source src="assets/rollouts/cube-failure.mp4" type="video/mp4">Your browser does not support this video. <a href="assets/rollouts/cube-failure.mp4">Download the rollout</a>.</video><img src="assets/rollouts/cube-failure-goal.png" alt="Goal observation for OGBench-Cube failure case" width="224" height="224" loading="lazy"></div>
+<figcaption><span>K = 16 / 192</span><button class="control" data-video="ogb-3" aria-label="Play OGBench-Cube failure case">Play</button></figcaption></figure></div></div>
+</div></section>
+<section id="citation" class="alt"><div class="container narrow"><h2>Citation</h2><p class="lede">If you find this work useful, please cite our <a href="https://arxiv.org/abs/2609.32921">arXiv preprint</a>.</p><div class="citation-box"><div class="citation-head"><span>BibTeX · <a href="citation.bib" download>Download</a></span><button class="control" id="copy-citation">Copy BibTeX</button></div><pre id="bibtex">@article{achituve2026adaptive,
+  title   = {Adaptive Latent Capacity for World Models},
+  author  = {Achituve, Idan and Dikstein, Lior and Diamant, Idit
+             and Netzer, Arnon and Habi, Hai Victor},
+  journal = {arXiv preprint arXiv:2609.32921},
+  year    = {2026},
+  doi     = {10.48550/arXiv.2609.32921},
+  url     = {https://arxiv.org/abs/2609.32921}
+}</pre><p id="copy-status" class="copy-status" role="status" aria-live="polite"></p></div></div></section>
+</main><footer>Arm Research · ALeWM · 2026<br>Page layout inspired by <a href="https://galvinograd.github.io/eddy/">EDDY</a>. Figures and results from <a href="https://arxiv.org/abs/2609.32921">Adaptive Latent Capacity for World Models</a>.</footer>
+</body></html>
